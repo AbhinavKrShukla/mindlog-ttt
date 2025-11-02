@@ -20,14 +20,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Share asset URLs using secure_asset to ensure HTTPS links
-        Inertia::share([
-            'assets' => [
-                'js' => secure_asset('js/app.js'),
-                'css' => secure_asset('css/app.css'),
-            ],
-        ]);
-        
         Vite::prefetch(concurrency: 3);
     }
 }
