@@ -1,3 +1,21 @@
+# --- Frontend Build Stage ---
+# Step 1: Build assets with Node.js (Vite)
+FROM node:20 as node_builder
+
+# Set working directory for node build
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy the application files to build the assets
+COPY . .
+
+# Build the assets
+RUN npm run build
+
+
 # Use PHP with FPM (no Apache)
 FROM php:8.2-fpm
 
