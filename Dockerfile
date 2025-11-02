@@ -12,25 +12,23 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # ---- Set working directory ----
 WORKDIR /var/www/html
 
-# ---- Copy composer files and install dependencies ----
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader
-
-# ---- Copy remaining project files ----
+# ---- Copy all files ----
 COPY . .
 
-# ---- Install JS dependencies and build with Vite ----
+# ---- Install PHP dependencies ----
+RUN composer install --no-dev --optimize-autoloader
+
+# ---- Install and build frontend ----
 RUN npm install && npm run build
 
-# ---- Expose Laravel default port ----
+# ---- Expose port ----
 EXPOSE 8000
 
-# ---- Set environment variables ----
+# ---- Environment ----
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    APP_URL=http://localhost:8000 \
     HOST=0.0.0.0 \
     PORT=8000
 
-# ---- Command to run the Laravel app ----
+# ---- Run Laravel ----
 CMD php artisan serve --host=0.0.0.0 --port=8000
