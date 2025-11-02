@@ -15,6 +15,11 @@ COPY . .
 # Build the assets
 RUN npm run build
 
+COPY --from=node_builder /app/public/build /var/www/html/public/build
+
+RUN chown -R www-data:www-data /var/www/html/public/build
+
+
 
 # Use PHP with FPM (no Apache)
 FROM php:8.2-fpm
