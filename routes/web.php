@@ -38,3 +38,4 @@ Route::middleware('auth')->group(function(){
 
 
 require __DIR__.'/auth.php';
+if (env('APP_ENV')) { URL::forceScheme('https'); }
