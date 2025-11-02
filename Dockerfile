@@ -48,8 +48,7 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Step 3: Install PHP dependencies using Composer
-RUN composer install --no-dev --optimize-autoloader --no-interaction \
-    && php artisan key:generate
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Step 4: Handle database migrations
 # Attempt to create the cache table and run migrations
