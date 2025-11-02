@@ -26,7 +26,7 @@ RUN curl -sS https://getcomposer.org/installer | php \
     composer install --no-dev --optimize-autoloader && \
     chown -R www-data:www-data storage bootstrap/cache
 
-RUN php artisan cache:table && php artisan migrate --force
+RUN php artisan migrate --force
 
 CMD php artisan optimize:clear && apache2-foreground
 EXPOSE 80
