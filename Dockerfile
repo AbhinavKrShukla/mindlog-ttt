@@ -1,34 +1,39 @@
-# ---- Base image ----
-FROM php:8.3-cli
+# Use PHP with FPM (no Apache)
+FROM php:8.2-fpm
 
-# ---- Install system dependencies ----
-RUN apt-get update && apt-get install -y \
-    git unzip curl nodejs npm \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies + nginx
+RUN apt-get update && apt-get install -y nginx git zip unzip libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libzip-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo pdo_mysql zip mbstring exif
 
-# ---- Install Composer ----
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# ---- Set working directory ----
 WORKDIR /var/www/html
 
-# ---- Copy all files ----
+# Copy app
 COPY . .
 
-# ---- Install PHP dependencies ----
-RUN composer install --no-dev --optimize-autoloader
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# ---- Install and build frontend ----
-RUN npm install && npm run build
+# Update Nginx site config to point to Laravel public folder and PHP-FPM
+RUN echo 'server { \
+    listen 80; \
+    root /var/www/html/public; \
+    index index.php index.html; \
+    location / { try_files $uri $uri/ /index.php?$query_string; } \
+    location ~ \.php$ { \
+        include snippets/fastcgi-php.conf; \
+        fastcgi_pass 127.0.0.1:9000; \
+    } \
+    location ~ /\.ht { deny all; } \
+}' > /etc/nginx/sites-available/default
 
-# ---- Expose port ----
-EXPOSE 8000
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# ---- Environment ----
-ENV APP_ENV=production \
-    APP_DEBUG=false \
-    HOST=0.0.0.0 \
-    PORT=8000
+EXPOSE 80
 
-# ---- Run Laravel ----
-CMD php artisan serve --host=0.0.0.0 --port=8000
+# Run migrations + start services
+CMD php artisan migrate --force && php-fpm -D && nginx -g "daemon off;"
