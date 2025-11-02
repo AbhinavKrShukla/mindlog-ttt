@@ -16,44 +16,58 @@ COPY . .
 RUN npm run build
 
 # Copy the build assets from the node_builder stage
-FROM php:8.2-fpm
+FROM php:8.2-apache
 
-# Copy the build folder from the node_builder stage to the final image
-COPY --from=node_builder /app/public/build /var/www/html/public/build
-
-# Install dependencies + nginx
-RUN apt-get update && apt-get install -y nginx git zip unzip libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libzip-dev \
+# Install Apache modules and PHP extensions
+RUN apt-get update && apt-get install -y \
+    git \
+    zip \
+    unzip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql zip mbstring exif
+    && docker-php-ext-install gd pdo pdo_mysql zip mbstring exif \
+    # Enable Apache modules
+    && a2enmod rewrite proxy_fcgi setenvif ssl \
+    # Enable PHP-FPM support
+    && a2enconf php8.2-fpm
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Set working directory
 WORKDIR /var/www/html
 
 # Copy app
 COPY . .
 
+# Copy the build folder from the node_builder stage to the final image
+COPY --from=node_builder /app/public/build /var/www/html/public/build
+
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Update Nginx site config to point to Laravel public folder and PHP-FPM
-RUN echo 'server { \
-    listen 80; \
-    root /var/www/html/public; \
-    index index.php index.html; \
-    location / { try_files $uri $uri/ /index.php?$query_string; } \
-    location ~ \.php$ { \
-        include snippets/fastcgi-php.conf; \
-        fastcgi_pass 127.0.0.1:9000; \
-    } \
-    location ~ /\.ht { deny all; } \
-}' > /etc/nginx/sites-available/default
-
-# Set permissions
+# Set permissions for Laravel storage and cache directories
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Expose port 80 for Apache
 EXPOSE 80
 
-# Run migrations + start services
-CMD php artisan migrate --force && php-fpm -D && nginx -g "daemon off;"
+# Update Apache site configuration to point to Laravel public folder
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html/public\n\
+    DirectoryIndex index.php index.html\n\
+    <Directory /var/www/html/public>\n\
+        Options FollowSymLinks\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
+# Run migrations + start Apache service
+CMD php artisan migrate --force && apache2-foreground
