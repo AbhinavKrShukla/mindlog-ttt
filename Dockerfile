@@ -31,4 +31,4 @@ ENV APP_ENV=production \
     PORT=8000
 
 # ---- Run Laravel ----
-CMD php artisan serve --host=0.0.0.0 --port=8000
+CMD php artisan serve --host=69.62.79.69 --port=8000
